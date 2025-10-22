@@ -1,0 +1,8 @@
+opencv-python
+mediapipe>=0.10
+tensorflow>=2.9
+numpy
+pandas
+tqdm
+matplotlib
+python-dotenv
