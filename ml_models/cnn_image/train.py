@@ -22,6 +22,7 @@ def prepare_features(
     items: List[Tuple[str, str]],
     target_size: Tuple[int, int] = (64, 64),
     grayscale: bool = True,
+    use_mediapipe: bool | None = None,
 ) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     paths, labels = zip(*items)
     label_to_idx, classes = build_label_mappings(list(labels))
@@ -30,7 +31,12 @@ def prepare_features(
     y_indices: List[int] = []
 
     for path, label in tqdm(items, desc="Extracting features"):
-        feat = image_path_to_feature(path, target_size=target_size, grayscale=grayscale)
+        feat = image_path_to_feature(
+            path,
+            target_size=target_size,
+            grayscale=grayscale,
+            use_mediapipe=use_mediapipe,
+        )
         features.append(feat.astype(np.float32))
         y_indices.append(label_to_idx[label])
 
@@ -46,14 +52,25 @@ def main() -> None:
     parser.add_argument("--img-size", type=int, default=64, help="Square size to resize images to")
     parser.add_argument("--color", action="store_true", help="Use RGB instead of grayscale")
     parser.add_argument("--test-fraction", type=float, default=0.2, help="Fraction of data for test set")
+    parser.add_argument("--mediapipe", action="store_true", help="Use MediaPipe holistic landmarks if available")
     args = parser.parse_args()
 
     items = list_images_with_labels(args.dataset)
     train_items, test_items = split_dataset(items, test_fraction=args.test_fraction, seed=42)
 
     target_size = (args.img_size, args.img_size)
-    X_train, y_train, classes = prepare_features(train_items, target_size=target_size, grayscale=not args.color)
-    X_test, y_test, _ = prepare_features(test_items, target_size=target_size, grayscale=not args.color)
+    X_train, y_train, classes = prepare_features(
+        train_items,
+        target_size=target_size,
+        grayscale=not args.color,
+        use_mediapipe=args.mediapipe,
+    )
+    X_test, y_test, _ = prepare_features(
+        test_items,
+        target_size=target_size,
+        grayscale=not args.color,
+        use_mediapipe=args.mediapipe,
+    )
 
     model = NearestCentroidClassifier()
     model.fit(X_train, y_train, classes)

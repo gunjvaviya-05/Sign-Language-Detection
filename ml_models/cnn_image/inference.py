@@ -10,7 +10,27 @@ from ml_models.cnn_image.model import NearestCentroidClassifier
 from shared.feature_engineering import image_path_to_feature, is_image_file
 
 
-def predict_on_paths(model_path: str, paths: List[str], img_size: int, color: bool) -> List[Tuple[str, str, float]]:
+def _discover_images(input_path: str) -> List[str]:
+    """Collect image paths. If a directory is provided, recurse into subdirectories."""
+    paths: List[str] = []
+    if os.path.isdir(input_path):
+        for root, _dirs, files in os.walk(input_path):
+            for fname in sorted(files):
+                fpath = os.path.join(root, fname)
+                if os.path.isfile(fpath) and is_image_file(fpath):
+                    paths.append(fpath)
+    else:
+        paths = [input_path]
+    return paths
+
+
+def predict_on_paths(
+    model_path: str,
+    paths: List[str],
+    img_size: int,
+    color: bool,
+    use_mediapipe: bool | None = None,
+) -> List[Tuple[str, str, float]]:
     model = NearestCentroidClassifier.load(model_path)
     target_size = (img_size, img_size)
 
@@ -20,7 +40,12 @@ def predict_on_paths(model_path: str, paths: List[str], img_size: int, color: bo
         if not os.path.isfile(p) or not is_image_file(p):
             continue
         try:
-            feat = image_path_to_feature(p, target_size=target_size, grayscale=not color)
+            feat = image_path_to_feature(
+                p,
+                target_size=target_size,
+                grayscale=not color,
+                use_mediapipe=use_mediapipe,
+            )
             features.append(feat.astype(np.float32))
             valid_paths.append(p)
         except Exception as exc:
@@ -48,19 +73,13 @@ def main() -> None:
     parser.add_argument("--image", required=True, help="Path to an image file or directory of images")
     parser.add_argument("--img-size", type=int, default=64, help="Square size used during training")
     parser.add_argument("--color", action="store_true", help="Use RGB instead of grayscale")
+    parser.add_argument("--mediapipe", action="store_true", help="Use MediaPipe holistic landmarks if available")
     args = parser.parse_args()
 
     input_path = args.image
-    paths: List[str] = []
-    if os.path.isdir(input_path):
-        for fname in sorted(os.listdir(input_path)):
-            fpath = os.path.join(input_path, fname)
-            if os.path.isfile(fpath) and is_image_file(fpath):
-                paths.append(fpath)
-    else:
-        paths = [input_path]
+    paths: List[str] = _discover_images(input_path)
 
-    results = predict_on_paths(args.model, paths, args.img_size, args.color)
+    results = predict_on_paths(args.model, paths, args.img_size, args.color, args.mediapipe)
     if not results:
         print("No valid images to run inference on.")
         return

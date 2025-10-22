@@ -17,6 +17,7 @@ def main() -> None:
     parser.add_argument("--output", required=True, help="Path to output .npz file")
     parser.add_argument("--img-size", type=int, default=64, help="Square size to resize images to")
     parser.add_argument("--color", action="store_true", help="Use RGB instead of grayscale")
+    parser.add_argument("--mediapipe", action="store_true", help="Use MediaPipe holistic landmarks if available")
     args = parser.parse_args()
 
     items = list_images_with_labels(args.dataset)
@@ -27,7 +28,12 @@ def main() -> None:
     paths: List[str] = []
 
     for path, label in tqdm(items, desc="Extracting features"):
-        feat = image_path_to_feature(path, target_size=target_size, grayscale=not args.color)
+        feat = image_path_to_feature(
+            path,
+            target_size=target_size,
+            grayscale=not args.color,
+            use_mediapipe=args.mediapipe,
+        )
         features.append(feat.astype(np.float32))
         labels.append(label)
         paths.append(path)
