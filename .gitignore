@@ -3,3 +3,7 @@ __pycache__/
 *.lock
 *.pyc
 .DS_Store
+data/raw/
+data/processed/
+models/
+captures/
